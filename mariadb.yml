@@ -30,7 +30,7 @@ spec:
     matchLabels:
       app: mariadb
   serviceName: mariadb
-  replicas: 4
+  replicas: 3
   template:
     metadata:
       labels:
