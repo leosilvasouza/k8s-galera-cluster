@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+  namespace: mariadb
+spec:
+  ports:
+  - port: 3306
+    name: mysql
+  - port: 4567
+    name: replication-tcp
+  - port: 4567
+    protocol: UDP
+    name: replication-udp
+  - port: 4568
+    name: incremental-state-transfer
+  - port: 4444
+    name: state-snapshot-transfer
+  clusterIP: None
+  selector:
+    app: mariadb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mariadb
+  namespace: mariadb
+spec:
+  selector:
+    matchLabels:
+      app: mariadb
+  serviceName: mariadb
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      #initContainers:
+      #- name: cleaner
+      #  image: busybox:1.28
+      #  volumeMounts:
+      #  - name: mariadb
+      #    mountPath: /var/lib/mysql
+      #  command: ["sh", "-c", "rm -rf /var/lib/mysql/*"] 
+      containers:
+      - name: mariadb
+        image: mariadb:10.4
+        #args:
+        #- --wsrep-new-cluster
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb
+              key: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mariadb
+              key: MYSQL_USER
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb
+              key: MYSQL_PASSWORD
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: mariadb
+              key: MYSQL_DATABASE
+        ports:
+        - containerPort: 3306
+          name: database
+        volumeMounts:
+        - name: galera-cnf
+          mountPath: /etc/mysql/conf.d/galera.cnf
+          subPath: galera.cnf
+        - name: mariadb
+          mountPath: /var/lib/mysql
+        readinessProbe:
+          exec:
+           command:
+           - sh
+           - -c
+           - mysql -h $HOSTNAME -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SHOW GLOBAL STATUS LIKE 'wsrep_ready';" | grep ON
+      volumes:
+      - name: galera-cnf
+        configMap:
+          name: galera-cnf
+  volumeClaimTemplates:
+  - metadata:
+      name: mariadb
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: "do-block-storage"
+      resources:
+        requests:
+          storage: 3Gi

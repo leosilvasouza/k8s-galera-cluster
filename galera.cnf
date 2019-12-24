@@ -1,0 +1,12 @@
+#
+# * Galera-related settings
+#
+[galera]
+# Mandatory settings
+wsrep_on=ON
+wsrep_provider=/usr/lib/libgalera_smm.so
+wsrep_cluster_name=dragonfly
+wsrep_cluster_address=gcomm://mariadb-0.mariadb.mariadb:4567,mariadb-1.mariadb.mariadb:4567,mariadb-2.mariadb.mariadb:4567
+binlog_format=row
+default_storage_engine=InnoDB
+innodb_autoinc_lock_mode=2
